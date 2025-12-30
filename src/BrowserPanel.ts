@@ -65,7 +65,7 @@ export class BrowserPanel {
         
         // Restore bookmarks
         this._bookmarks = this._context.globalState.get('copilot-bridge-bookmarks', []);
-        console.log('[BrowserPanel] Restored bookmarks from globalState:', this._bookmarks);
+        // console.log('[BrowserPanel] Restored bookmarks from globalState:', this._bookmarks);
 
         this._update(); // Initial Load
 
@@ -97,7 +97,7 @@ export class BrowserPanel {
                         this._handleScreenshotCaptured(message.data);
                         return;
                     case 'openDevTools':
-                        console.log('[BrowserPanel] TRIGGER: openDevTools command received from UI');
+                        // console.log('[BrowserPanel] TRIGGER: openDevTools command received from UI');
                         
                         // Check if a localhost URL is loaded
                         if (!this._currentUrl || (!this._currentUrl.includes('localhost') && !this._currentUrl.includes('127.0.0.1'))) {
@@ -113,7 +113,7 @@ export class BrowserPanel {
 
                         // Make getChiiUrl async to allow backend target discovery with retries
                         this._proxyServer.getChiiUrl().then(result => {
-                            console.log(`[BrowserPanel] STEP: Fetched Chii URL from ProxyServer:`, result);
+                            // console.log(`[BrowserPanel] STEP: Fetched Chii URL from ProxyServer:`, result);
                             
                             if (result.error) {
                                 console.error('[BrowserPanel] ERROR:', result.error);
@@ -127,7 +127,7 @@ export class BrowserPanel {
                                 return;
                             }
 
-                            console.log('[BrowserPanel] SUCCESS: Sending toggleInternalDevTools message to Webview');
+                            // console.log('[BrowserPanel] SUCCESS: Sending toggleInternalDevTools message to Webview');
                             this._panel.webview.postMessage({ 
                                 command: 'toggleInternalDevTools', 
                                 chiiUrl: result.url
@@ -145,7 +145,7 @@ export class BrowserPanel {
     }
 
     private _sendBookmarks() {
-        console.log('[BrowserPanel] Sending bookmarks to webview:', this._bookmarks);
+        // console.log('[BrowserPanel] Sending bookmarks to webview:', this._bookmarks);
         this._panel.webview.postMessage({
             command: 'loadBookmarks',
             bookmarks: this._bookmarks
@@ -155,7 +155,7 @@ export class BrowserPanel {
     private _saveBookmarks(bookmarks: any[]) {
         this._bookmarks = bookmarks;
         this._context.globalState.update('copilot-bridge-bookmarks', bookmarks);
-        console.log('[BrowserPanel] Bookmarks saved to globalState:', bookmarks);
+        // console.log('[BrowserPanel] Bookmarks saved to globalState:', bookmarks);
     }
 
     private async _handleScreenshotCopied() {
@@ -169,7 +169,7 @@ export class BrowserPanel {
 
     private async _handleScreenshotCaptured(base64Data: string) {
         try {
-            console.log('[Extension Debug] Screenshot received from webview');
+            // console.log('[Extension Debug] Screenshot received from webview');
             const startTime = Date.now();
             
             // 0. (Skipped) Don't save original clipboard so we can keep the screenshot in clipboard
@@ -187,14 +187,14 @@ export class BrowserPanel {
             const filePath = path.join(tempDir, `copilot-screenshot-${Date.now()}.png`);
             
             // 3. Save file temporarily
-            console.time('[Extension] File Write');
+            // console.time('[Extension] File Write');
             await fs.promises.writeFile(filePath, buffer);
-            console.timeEnd('[Extension] File Write');
+            // console.timeEnd('[Extension] File Write');
             
             // 4. Copy to clipboard using cross-platform img-clipboard
-            console.time('[Extension] Clipboard Copy (img-clipboard)');
+            // console.time('[Extension] Clipboard Copy (img-clipboard)');
             const [err, stdout, stderr] = await copyImg(filePath);
-            console.timeEnd('[Extension] Clipboard Copy (img-clipboard)');
+            // console.timeEnd('[Extension] Clipboard Copy (img-clipboard)');
             
             if (err) {
                 // Handle platform-specific errors
@@ -216,13 +216,13 @@ export class BrowserPanel {
             }
             
             // 5. Open chat and paste
-            console.time('[Extension] Chat Open & Paste');
+            // console.time('[Extension] Chat Open & Paste');
             await vscode.commands.executeCommand('workbench.action.chat.open');
             
             setTimeout(async () => {
                 await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
-                console.timeEnd('[Extension] Chat Open & Paste');
-                console.log(`[Extension Debug] Total Extension Time: ${Date.now() - startTime}ms`);
+                // console.timeEnd('[Extension] Chat Open & Paste');
+                // console.log(`[Extension Debug] Total Extension Time: ${Date.now() - startTime}ms`);
                 
                 // 6. Cleanup: Delete temp file (but keep content in clipboard)
                 setTimeout(async () => {
@@ -314,12 +314,12 @@ export class BrowserPanel {
             const uri = vscode.Uri.parse(proxyUrl);
             const tunneled = await vscode.env.asExternalUri(uri);
             
-            console.log(`Tunneling Localhost via Proxy: ${url} -> Proxy:${proxyPort} -> ${tunneled}`);
+            // console.log(`Tunneling Localhost via Proxy: ${url} -> Proxy:${proxyPort} -> ${tunneled}`);
 
             // Send Chii URL to frontend early if available
             setTimeout(async () => {
                  const result = await this._proxyServer.getChiiUrl();
-                 console.log(`[BrowserPanel] Background Chii discovery:`, result);
+                 // console.log(`[BrowserPanel] Background Chii discovery:`, result);
                  if (result.url) {
                      this._panel.webview.postMessage({ command: 'updateChiiUrl', chiiUrl: result.url });
                  }
@@ -625,7 +625,7 @@ export class BrowserPanel {
             this._proxyServer.stop();
             // Give servers time to close gracefully
             setTimeout(() => {
-                console.log('[BrowserPanel] Cleanup complete');
+                // console.log('[BrowserPanel] Cleanup complete');
             }, 100);
         }
         
