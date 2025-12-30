@@ -1,0 +1,76 @@
+{
+  "name": "visual-browser-vscode",
+  "displayName": "Visual Browser",
+  "publisher": "hossam-dagdag",
+  "description": "Integrated web browser for VS Code with element inspection tools",
+  "version": "1.0.0",
+  "icon": "logo.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/doffa-D/visual-browser.git"
+  },
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "visual-browser.openBrowser",
+        "title": "Open Visual Browser",
+        "icon": "$(globe)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "visual-browser.openBrowser"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "visual-browser.openBrowser",
+          "group": "navigation"
+        }
+      ],
+      "chat/title": [
+        {
+          "command": "visual-browser.openBrowser",
+          "group": "navigation"
+        }
+      ],
+      "chat/input/action": [
+        {
+          "command": "visual-browser.openBrowser",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile && npm run build:webview",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "build:webview": "cd webview-ui && npm install && npm run build",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.27",
+    "@types/vscode": "^1.96.0",
+    "@vscode/vsce": "^3.2.1",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@types/http-proxy": "^1.17.17",
+    "chii": "^1.15.5",
+    "http-proxy": "^1.18.1",
+    "img-clipboard": "^1.1.0",
+    "tough-cookie": "^6.0.0"
+  }
+}
