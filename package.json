@@ -21,7 +21,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:visual-browser.openBrowser"
+    "*"
   ],
   "main": "./out/extension.js",
   "contributes": {
