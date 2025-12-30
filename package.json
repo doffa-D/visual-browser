@@ -1,14 +1,19 @@
 {
   "name": "visual-browser-vscode",
   "displayName": "Visual Browser",
-  "publisher": "houssam-dagdague",
+  "publisher": "doffa",
   "description": "Integrated web browser for VS Code with element inspection tools",
   "version": "1.0.0",
   "icon": "logo.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/doffa-D/visual-browser.git"
+    "url": "https://github.com/doffa-D/visual-browser"
   },
+  "bugs": {
+    "url": "https://github.com/doffa-D/visual-browser/issues",
+    "email": "hossam.dagdag@gmail.com"
+  },
+  "homepage": "https://github.com/doffa-D/visual-browser",
   "engines": {
     "vscode": "^1.96.0"
   },
