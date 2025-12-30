@@ -172,8 +172,8 @@ export class BrowserPanel {
             // console.log('[Extension Debug] Screenshot received from webview');
             const startTime = Date.now();
             
-            // 0. (Skipped) Don't save original clipboard so we can keep the screenshot in clipboard
-            // const originalClipboard = await vscode.env.clipboard.readText();
+            // 0. Save original clipboard
+            const originalClipboard = await vscode.env.clipboard.readText();
 
             // 1. Process image data
             const base64Image = base64Data.split(';base64,').pop();
@@ -224,16 +224,16 @@ export class BrowserPanel {
                 // console.timeEnd('[Extension] Chat Open & Paste');
                 // console.log(`[Extension Debug] Total Extension Time: ${Date.now() - startTime}ms`);
                 
-                // 6. Cleanup: Delete temp file (but keep content in clipboard)
+                // 6. Cleanup: Delete temp file and restore original clipboard
                 setTimeout(async () => {
-                    // await vscode.env.clipboard.writeText(originalClipboard);
+                    await vscode.env.clipboard.writeText(originalClipboard);
                     // Delete the temporary file
                     try {
                         await fs.promises.unlink(filePath);
                     } catch (err) {
                         console.error('[BrowserPanel] Failed to delete temp screenshot:', err);
                     }
-                }, 300);
+                }, 1000);
             }, 100);
             
         } catch (e: any) {
@@ -244,8 +244,8 @@ export class BrowserPanel {
     private async _handleElementPicked(text: string) {
         if (!text) return;
         
-        // 1. (Skipped) Don't save original clipboard
-        // const originalClipboard = await vscode.env.clipboard.readText();
+        // 1. Save original clipboard
+        const originalClipboard = await vscode.env.clipboard.readText();
         
         // 2. Copy picked element (with newline for continuous picking)
         await vscode.env.clipboard.writeText(text + '\n');
@@ -255,10 +255,10 @@ export class BrowserPanel {
             await vscode.commands.executeCommand('workbench.action.chat.open');
             await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
             
-            // 4. SUCCESS: Content stays in clipboard for manual pasting if needed
-            // setTimeout(async () => {
-            //     await vscode.env.clipboard.writeText(originalClipboard);
-            // }, 500); 
+            // 4. SUCCESS: Restore original clipboard after a short delay
+            setTimeout(async () => {
+                await vscode.env.clipboard.writeText(originalClipboard);
+            }, 1000); 
 
         } catch (e) {
             // 5. FAILURE: Keep picked element in clipboard for manual paste
