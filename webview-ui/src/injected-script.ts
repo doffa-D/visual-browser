@@ -134,7 +134,7 @@ declare global {
         isDragging = true;
         startX = e.clientX;
         startY = e.clientY;
-        console.log('[Screenshot Debug] Mouse Down:', { startX, startY, scrollX: window.scrollX, scrollY: window.scrollY });
+        // console.log('[Screenshot Debug] Mouse Down:', { startX, startY, scrollX: window.scrollX, scrollY: window.scrollY });
         if (selectionBox) {
             selectionBox.style.display = 'block';
             selectionBox.style.left = startX + 'px';
@@ -174,6 +174,7 @@ declare global {
             const captureX = rect.left + window.scrollX;
             const captureY = rect.top + window.scrollY;
             
+            /*
             console.log('[Screenshot Debug] Mouse Up / Selection Finalized:', {
                 selectionRect: {
                     left: rect.left,
@@ -192,6 +193,7 @@ declare global {
                 captureX,
                 captureY
             });
+            */
             
             // Hide overlays for capture
             snipperOverlay.style.display = 'none';
@@ -200,8 +202,8 @@ declare global {
             // Wait a frame for overlays to fully hide
             requestAnimationFrame(async () => {
                 try {
-                    console.time('[Screenshot] Total Capture Process');
-                    console.time('[Screenshot] domToPng Rendering');
+                    // console.time('[Screenshot] Total Capture Process');
+                    // console.time('[Screenshot] domToPng Rendering');
                     
                     // OPTIMIZATION: Use a much faster rendering approach
                     const viewportDataUrl = await domToPng(document.body, {
@@ -217,10 +219,10 @@ declare global {
                                    element.id !== 'visual-browser-devtools-overlay';
                         }
                     });
-                    console.timeEnd('[Screenshot] domToPng Rendering');
+                    // console.timeEnd('[Screenshot] domToPng Rendering');
 
                     // Crop the image using canvas
-                    console.time('[Screenshot] Canvas Cropping/Encoding');
+                    // console.time('[Screenshot] Canvas Cropping/Encoding');
                     const img = new Image();
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
@@ -236,8 +238,8 @@ declare global {
                         ctx.drawImage(img, sourceX, sourceY, rect.width, rect.height, 0, 0, rect.width, rect.height);
 
                         const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                        console.timeEnd('[Screenshot] Canvas Cropping/Encoding');
-                        console.timeEnd('[Screenshot] Total Capture Process');
+                        // console.timeEnd('[Screenshot] Canvas Cropping/Encoding');
+                        // console.timeEnd('[Screenshot] Total Capture Process');
                         
                         window.parent.postMessage({
                             command: 'screenshotCaptured',

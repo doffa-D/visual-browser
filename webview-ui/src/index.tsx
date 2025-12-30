@@ -17,7 +17,7 @@ const pickerRootId = rootId;
 
 // Wait for DOM to be fully ready
 function initializeApp() {
-    console.log('Initializing Copilot Browser App...');
+    // console.log('Initializing Copilot Browser App...');
     
     // Load Codicons stylesheet
     const codiconsLink = document.createElement('link');
@@ -40,7 +40,7 @@ function initializeApp() {
                 <Toolbar />
             </React.StrictMode>
         );
-        console.log('React Toolbar mounted successfully');
+        // console.log('React Toolbar mounted successfully');
     } catch (err) {
         console.error('Failed to mount React:', err);
     }
@@ -112,7 +112,7 @@ window.addEventListener('message', (event) => {
     // SECURITY: Ensure we only listen to TRUSTED messages (from our own window)
     if (event.data && event.data.command === 'togglePicker') {
         pickerEnabled = event.data.enabled;
-        console.log("Picker State Toggled:", pickerEnabled);
+        // console.log("Picker State Toggled:", pickerEnabled);
         
         if (!pickerEnabled) {
             hideOverlay();
@@ -135,7 +135,7 @@ window.addEventListener('message', (event) => {
     // HANDLE Snipper toggle
     if (event.data && event.data.command === 'toggleSnipper') {
         const snipperEnabled = event.data.enabled;
-        console.log("Snipper State Toggled:", snipperEnabled);
+        // console.log("Snipper State Toggled:", snipperEnabled);
         
         if (snipperEnabled) {
             // Disable picker if snipper is enabled
@@ -155,7 +155,7 @@ window.addEventListener('message', (event) => {
 
     // HANDLE message FROM iframe
     if (event.data && event.data.command === 'elementPicked' && event.source !== window) {
-        console.log("Element Picked from Iframe:", event.data.text);
+        // console.log("Element Picked from Iframe:", event.data.text);
         vscode.postMessage({ command: 'elementPicked', text: event.data.text });
         
         // Reset local state too
@@ -166,7 +166,7 @@ window.addEventListener('message', (event) => {
 
     // HANDLE Screenshot Captured
     if (event.data && event.data.command === 'screenshotCaptured') {
-        console.log("Screenshot Captured, sending to VS Code");
+        // console.log("Screenshot Captured, sending to VS Code");
         vscode.postMessage({ 
             command: 'screenshotCaptured', 
             data: event.data.data 
@@ -176,7 +176,7 @@ window.addEventListener('message', (event) => {
     // HANDLE Chii URL update (background discovery)
     if (event.data && event.data.command === 'updateChiiUrl') {
         const chiiUrl = event.data.chiiUrl;
-        console.log("Chii URL Updated (Background):", chiiUrl);
+        // console.log("Chii URL Updated (Background):", chiiUrl);
         
         if (chiiUrl) {
             let devToolsOverlay = document.getElementById('copilot-devtools-overlay') as HTMLDivElement;
@@ -193,7 +193,7 @@ window.addEventListener('message', (event) => {
     if (event.data && event.data.command === 'toggleInternalDevTools') {
         const chiiUrl = event.data.chiiUrl;
         const autoOpen = event.data.autoOpen !== false; // Default to true
-        console.log("DevTools Message Received:", { chiiUrl, autoOpen });
+        // console.log("DevTools Message Received:", { chiiUrl, autoOpen });
         
         if (chiiUrl) {
             // Create or toggle iframe overlay for DevTools
@@ -332,7 +332,7 @@ document.addEventListener('click', (e) => {
 
     if (target.closest(`#${pickerRootId}`)) return;
 
-    console.log("Element Clicked:", target);
+    // console.log("Element Clicked:", target);
 
     // STOP EVERYTHING
     e.preventDefault();

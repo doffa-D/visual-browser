@@ -79,7 +79,7 @@ export class ProxyServer {
                 let html = Buffer.concat(body).toString();
                 
                 // INJECTION LOGIC
-                console.log('[Proxy] Intercepting HTML response, length:', html.length);
+                // console.log('[Proxy] Intercepting HTML response, length:', html.length);
 
                 // Generate nonce for CSP-safe script injection
                 const nonce = crypto.randomBytes(16).toString('base64');
@@ -100,17 +100,17 @@ export class ProxyServer {
                     ${chiiScript}
                     <script nonce="${nonce}" src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
                     <script nonce="${nonce}">
-                        console.log('[Proxy] Injected Picker Script Loaded');
+                        // console.log('[Proxy] Injected Picker Script Loaded');
                         ${this._injectedScript}
                     </script>
                     <style>body { padding-top: 75px !important; margin-top: 0 !important; }</style>
                 `;
 
                 if (html.includes('<body')) {
-                    console.log('[Proxy] Injecting into body tag with nonce-based CSP');
+                    // console.log('[Proxy] Injecting into body tag with nonce-based CSP');
                     html = html.replace(/<body([^>]*)>/i, `<body$1>${injection}`);
                 } else {
-                    console.log('[Proxy] Prepending to HTML (no body tag found)');
+                    // console.log('[Proxy] Prepending to HTML (no body tag found)');
                     html = injection + html;
                 }
 
@@ -138,14 +138,14 @@ export class ProxyServer {
     }
 
     private async _startChii() {
-        console.log('[ProxyServer] STATE: _startChii() invoked');
+        // console.log('[ProxyServer] STATE: _startChii() invoked');
         if (this._chiiPort) {
-            console.log(`[ProxyServer] INFO: Chii already running on port ${this._chiiPort}`);
+            // console.log(`[ProxyServer] INFO: Chii already running on port ${this._chiiPort}`);
             return;
         }
         
         try {
-            console.log('[ProxyServer] ACTION: Starting Chii server...');
+            // console.log('[ProxyServer] ACTION: Starting Chii server...');
             
             // Chii.start() does NOT return the server instance with the port if we pass 0.
             // We need to create our own http server and pass it to Chii.
@@ -157,7 +157,7 @@ export class ProxyServer {
                     const addr = chiiServer.address();
                     if (addr && typeof addr !== 'string') {
                         this._chiiPort = addr.port;
-                        console.log(`[ProxyServer] STEP: Chii base server listening on port ${this._chiiPort}`);
+                        // console.log(`[ProxyServer] STEP: Chii base server listening on port ${this._chiiPort}`);
                         resolve();
                     } else {
                         reject(new Error('Failed to get Chii port'));
@@ -173,7 +173,7 @@ export class ProxyServer {
                 domain: `localhost:${this._chiiPort}`
             });
             
-            console.log(`[ProxyServer] LOG: Chii Server successfully fully initialized on port ${this._chiiPort}`);
+            // console.log(`[ProxyServer] LOG: Chii Server successfully fully initialized on port ${this._chiiPort}`);
             this._chiiReady = true;
             this._chiiStartupError = undefined;
         } catch (e: any) {
@@ -188,23 +188,23 @@ export class ProxyServer {
     }
 
     public async start(targetPort: number): Promise<number> {
-        console.log(`[ProxyServer] TRIGGER: start() called targeting port ${targetPort}`);
+        // console.log(`[ProxyServer] TRIGGER: start() called targeting port ${targetPort}`);
         this._extensionHostPort = targetPort;
 
         // Ensure Chii is started and wait for it
         if (this._chiiServerPromise) {
-            console.log('[ProxyServer] STEP: Waiting for _chiiServerPromise to resolve...');
+            // console.log('[ProxyServer] STEP: Waiting for _chiiServerPromise to resolve...');
             await this._chiiServerPromise;
         } else {
-            console.log('[ProxyServer] STEP: No active _chiiServerPromise found. Starting manually...');
+            // console.log('[ProxyServer] STEP: No active _chiiServerPromise found. Starting manually...');
             this._chiiServerPromise = this._startChii();
             await this._chiiServerPromise;
         }
         
-        console.log(`[ProxyServer] FINAL STATUS: Chii ready on port: ${this._chiiPort}`);
+        // console.log(`[ProxyServer] FINAL STATUS: Chii ready on port: ${this._chiiPort}`);
 
         return new Promise((resolve, reject) => {
-            console.log(`[ProxyServer] ACTION: Starting HTTP server on dynamic port...`);
+            // console.log(`[ProxyServer] ACTION: Starting HTTP server on dynamic port...`);
             this._server = http.createServer((req, res) => {
                 this._proxy.web(req, res, {
                     target: `http://localhost:${this._extensionHostPort}`
@@ -221,7 +221,7 @@ export class ProxyServer {
                 const address = this._server?.address();
                 if (address && typeof address !== 'string') {
                     this._port = address.port;
-                    console.log(`[ProxyServer] SUCCESS: Proxy server listening on port ${this._port}`);
+                    // console.log(`[ProxyServer] SUCCESS: Proxy server listening on port ${this._port}`);
                     resolve(this._port);
                 } else {
                     console.error('[ProxyServer] ERROR: Failed to get assigned port for proxy server');
@@ -260,7 +260,7 @@ export class ProxyServer {
         // Retry logic for target discovery
         for (let attempt = 0; attempt < retries; attempt++) {
             try {
-                console.log(`[ProxyServer] STEP: Fetching targets from http://127.0.0.1:${this._chiiPort}/targets (attempt ${attempt + 1}/${retries})`);
+                // console.log(`[ProxyServer] STEP: Fetching targets from http://127.0.0.1:${this._chiiPort}/targets (attempt ${attempt + 1}/${retries})`);
                 
                 const response = await new Promise<string>((resolve, reject) => {
                     const req = http.get({
@@ -286,18 +286,18 @@ export class ProxyServer {
 
                 const parsed = JSON.parse(response);
                 const targets = parsed.targets || [];
-                console.log(`[ProxyServer] LOG: Found ${targets.length} Chii targets`);
+                // console.log(`[ProxyServer] LOG: Found ${targets.length} Chii targets`);
 
                 if (targets.length > 0) {
                     const targetId = targets[0].id;
                     const inspectUrl = `http://127.0.0.1:${this._chiiPort}/front_end/chii_app.html?ws=127.0.0.1:${this._chiiPort}/client/${targetId}?target=${targetId}`;
-                    console.log(`[ProxyServer] SUCCESS: Generated inspect URL: ${inspectUrl}`);
+                    // console.log(`[ProxyServer] SUCCESS: Generated inspect URL: ${inspectUrl}`);
                     return { url: inspectUrl };
                 }
                 
                 // No targets found, retry if attempts remain
                 if (attempt < retries - 1) {
-                    console.log(`[ProxyServer] No targets found, retrying in ${delay}ms...`);
+                    // console.log(`[ProxyServer] No targets found, retrying in ${delay}ms...`);
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
             } catch (e: any) {
@@ -311,24 +311,24 @@ export class ProxyServer {
         
         // Fallback: return base URL if no targets found after all retries
         const baseUrl = `http://127.0.0.1:${this._chiiPort}/`;
-        console.log(`[ProxyServer] FALLBACK: No targets found after ${retries} attempts, returning base URL`);
+        // console.log(`[ProxyServer] FALLBACK: No targets found after ${retries} attempts, returning base URL`);
         return { url: baseUrl };
     }
 
     public stop() {
-        console.log('[ProxyServer] Stopping servers...');
+        // console.log('[ProxyServer] Stopping servers...');
         
         // Stop proxy server
         if (this._server) {
             this._server.close();
             this._server = undefined;
-            console.log('[ProxyServer] Proxy server stopped');
+            // console.log('[ProxyServer] Proxy server stopped');
         }
         
         // CRITICAL: Stop Chii server to prevent memory leaks
         if (this._chiiServer) {
             this._chiiServer.close(() => {
-                console.log('[ProxyServer] Chii server stopped');
+                // console.log('[ProxyServer] Chii server stopped');
             });
             this._chiiServer = undefined;
             this._chiiPort = undefined;
