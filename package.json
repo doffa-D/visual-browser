@@ -1,7 +1,7 @@
 {
   "name": "visual-browser-vscode",
   "displayName": "Visual Browser",
-  "publisher": "hossam-dagdag",
+  "publisher": "houssam-dagdague",
   "description": "Integrated web browser for VS Code with element inspection tools",
   "version": "1.0.0",
   "icon": "logo.png",
