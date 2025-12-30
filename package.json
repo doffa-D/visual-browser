@@ -32,6 +32,16 @@
         "icon": "$(globe)"
       }
     ],
+    "configuration": {
+      "title": "Visual Browser",
+      "properties": {
+        "visualBrowser.enableDebugLogs": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable debug logging for Visual Browser proxy and injection"
+        }
+      }
+    },
     "menus": {
       "commandPalette": [
         {
