@@ -14,18 +14,22 @@ Web development with AI is powerful, but context switching is the bottleneck. Vi
 ## ✨ Features
 
 - **Built-in Browser:** Browse your local or remote sites directly within VS Code.
+- **Persistent Storage:** Cookies, localStorage, sessionStorage, and IndexedDB are automatically saved and restored between sessions.
 - **Localhost Proxy:** Seamlessly tunnels your `localhost` traffic into the webview with automatic script injection (optimized for Vite, React, and modern frameworks).
+- **External Site Support:** Browse any website with improved stability - external sites are isolated in iframes to prevent crashes.
 - **Deep Inspection**: Extract DOM paths, computed styles, layout info, and raw HTML snippets with one click.
 - **Embedded DevTools:** Integrated Chromium-like Developer Tools panel for network, console, and element inspection.
+- **High-Quality Picker:** Element selection with 2x resolution for crisp, accurate captures.
 - **Modern UI:** A sleek, compact toolbar with glassmorphism effects that feels native to VS Code.
 
 ## 🛠️ How to use
 
 1. **Activate:** Use the **Globe Icon** in the Editor Title bar or Status Bar, or run the command `Open Visual Browser`.
-2. **Localhost Mode:** Enter your local dev server URL (e.g., `http://localhost:5173`). The bridge will proxy the connection to allow deep inspection.
+2. **Browse:** Enter any URL (local or external) in the address bar. For localhost, the bridge will proxy the connection to allow deep inspection.
 3. **AI Pick:** Click the **Selection Icon** (mouse cursor) to start picking elements. The context is automatically copied to your clipboard.
 4. **Snipper:** Click the **Camera Icon** and drag over an area to capture a screenshot and paste it into Copilot Chat.
 5. **DevTools:** Click the **Terminal Icon** to open the internal inspection console.
+6. **Bookmarks:** Save your favorite sites for quick access - bookmarks persist across sessions.
 
 ## ⚙️ Configuration
 
