@@ -1,11 +1,10 @@
 import * as vscode from 'vscode';
-import * as http from 'http';
-import * as https from 'https';
 import * as fs from 'fs';
 import * as path from 'path';
 import { CookieJar } from 'tough-cookie';
 import { URL } from 'url';
 import { ProxyServer } from './proxy/ProxyServer';
+import { StorageManager } from './storage/StorageManager';
 const { copyImg, ErrorCodes, isWayland } = require('img-clipboard');
 
 export class BrowserPanel {
@@ -15,7 +14,7 @@ export class BrowserPanel {
     private _disposables: vscode.Disposable[] = [];
     private _currentUrl: string = '';
     private _bookmarks: any[] = [];
-    private _cookieJar: CookieJar;
+    private _storageManager: StorageManager;
     private _proxyServer: ProxyServer;
 
     private _context: vscode.ExtensionContext;
@@ -59,9 +58,16 @@ export class BrowserPanel {
         this._panel = panel;
         this._extensionUri = extensionUri;
         this._context = context;
-        this._cookieJar = new CookieJar();
         
+        // Initialize storage manager with persistent storage
+        // Use extension's global storage directory
+        const storageDir = path.join(context.globalStoragePath, 'browser-storage');
+        this._storageManager = new StorageManager(storageDir);
+        this._storageManager.initialize();
+        
+        // Create proxy server and pass storage manager to it
         this._proxyServer = new ProxyServer(extensionUri);
+        this._proxyServer.setStorageManager(this._storageManager);
         
         // Restore bookmarks
         this._bookmarks = this._context.globalState.get('copilot-bridge-bookmarks', []);
@@ -136,6 +142,16 @@ export class BrowserPanel {
                             console.error('[BrowserPanel] ERROR: getChiiUrl failed:', err);
                             vscode.window.showErrorMessage(`Failed to start DevTools: ${err.message}`);
                         });
+                        return;
+                    
+                    // Handle storage requests from webview
+                    case 'storageRequest':
+                        this._handleStorageRequest(message.storageType);
+                        return;
+                    
+                    // Handle storage updates from webview
+                    case 'storageUpdate':
+                        this._handleStorageUpdate(message.storageType, message.action, message.key, message.value);
                         return;
                 }
             },
@@ -480,46 +496,78 @@ export class BrowserPanel {
     }
 
     private _loadExternalSite(url: string) {
-        const client: any = url.startsWith('https') ? https : http;
+        // Load external site in an iframe to isolate it from the toolbar
+        // This prevents external site JavaScript errors from crashing the UI
+        this._loadExternalSiteViaIframe(url);
+    }
+
+    private _loadExternalSiteViaIframe(url: string) {
+        const webview = this._panel.webview;
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'webview-bundle.js'));
         
-        // Get cookies for this URL
-        this._cookieJar.getCookies(url, (err: Error | null, cookies: any[] | undefined) => {
-            const cookieHeader = cookies ? cookies.join('; ') : '';
-            
-            const options = {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-                    'Cookie': cookieHeader
-                }
-            };
-
-            const req = client.get(url, options, (res: any) => {
-                // Store new cookies
-                if (res.headers['set-cookie']) {
-                    res.headers['set-cookie'].forEach((cookie: string) => {
-                        this._cookieJar.setCookie(cookie, url, () => {});
-                    });
-                }
-
-                // Handle redirects
-                if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                    const nextUrl = new URL(res.headers.location, url).href;
-                    this._loadUrl(nextUrl);
-                    return;
-                }
-
-                let data = '';
-                res.on('data', (chunk: any) => { data += chunk; });
-                res.on('end', () => {
-                    this._updateContent(data, url);
-                });
-
-            });
-            
-            req.on('error', (err: any) => {
-                this._updateContent(`<h1>Error loading page</h1><p>${err.message}</p>`, url);
-            });
-        });
+        this._panel.webview.html = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline' ws: wss: data: blob:; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline';">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Visual Browser - ${this._escapeHtml(url)}</title>
+                <style>
+                    body {
+                        margin: 0;
+                        padding: 0;
+                        overflow: hidden;
+                        background: #1e1e1e;
+                    }
+                    #external-iframe {
+                        position: absolute;
+                        top: 75px; 
+                        left: 0;
+                        width: 100%;
+                        height: calc(100% - 75px);
+                        border: none;
+                    }
+                </style>
+            </head>
+            <body>
+                <div id="react-toolbar-root" style="position: fixed; top: 0; left: 0; width: 100%; z-index: 10000; height: 75px;"></div>
+                <iframe 
+                    id="external-iframe"
+                    src="${url}"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation allow-storage-access-by-user-activation"
+                    allow="cross-origin-isolated; clipboard-read; clipboard-write; geolocation; microphone; camera;">
+                </iframe>
+                <script src="${scriptUri}"></script>
+                <script>
+                    // Notify React when iframe loads
+                    document.getElementById('external-iframe').onload = function() {
+                        try {
+                            window.parent.postMessage({ command: 'updatePageTitle', title: document.getElementById('external-iframe').contentWindow.document.title }, '*');
+                        } catch(e) {
+                            // Cross-origin - can't access title
+                        }
+                    };
+                    
+                    // Handle iframe errors gracefully
+                    document.getElementById('external-iframe').onerror = function() {
+                        console.log('Iframe failed to load');
+                    };
+                </script>
+            </body>
+            </html>
+        `;
+        
+        // Notify toolbar of the URL
+        setTimeout(() => {
+            this._panel.webview.postMessage({ command: 'updateUrl', url: url });
+            this._panel.webview.postMessage({ command: 'updatePageTitle', title: 'External Page' });
+            this._panel.webview.postMessage({ command: 'setLocalhostMode', isLocalhost: false });
+        }, 100);
+    }
+    
+    private _escapeHtml(text: string): string {
+        return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     private _updateWithIframe(iframeUrl: string, displayUrl: string, isProxy: boolean = false) {
@@ -588,11 +636,71 @@ export class BrowserPanel {
         return titleMatch ? titleMatch[1].trim() : '';
     }
 
+    // In-memory storage for webview communication
+    private _webviewLocalStorage: Record<string, string> = {};
+    private _webviewSessionStorage: Record<string, string> = {};
+
+    /**
+     * Handle storage requests from webview - send stored data back
+     */
+    private _handleStorageRequest(storageType: string): void {
+        let data: Record<string, string>;
+        
+        if (storageType === 'localStorage') {
+            data = this._webviewLocalStorage;
+        } else if (storageType === 'sessionStorage') {
+            data = this._webviewSessionStorage;
+        } else {
+            return;
+        }
+
+        // Send storage data to webview (will be forwarded to iframe)
+        this._panel.webview.postMessage({
+            command: 'storageData',
+            storageType: storageType,
+            data: data
+        });
+    }
+
+    /**
+     * Handle storage updates from webview
+     */
+    private _handleStorageUpdate(storageType: string, action: string, key?: string, value?: string): void {
+        if (storageType === 'localStorage') {
+            if (action === 'set' && key !== undefined && value !== undefined) {
+                this._webviewLocalStorage[key] = value;
+            } else if (action === 'remove' && key !== undefined) {
+                delete this._webviewLocalStorage[key];
+            } else if (action === 'clear') {
+                this._webviewLocalStorage = {};
+            }
+        } else if (storageType === 'sessionStorage') {
+            if (action === 'set' && key !== undefined && value !== undefined) {
+                this._webviewSessionStorage[key] = value;
+            } else if (action === 'remove' && key !== undefined) {
+                delete this._webviewSessionStorage[key];
+            } else if (action === 'clear') {
+                this._webviewSessionStorage = {};
+            }
+        }
+        
+        // Forward to iframe if it exists (for localhost mode)
+        this._panel.webview.postMessage({
+            command: 'storageData',
+            storageType: storageType,
+            data: storageType === 'localStorage' ? this._webviewLocalStorage : this._webviewSessionStorage
+        });
+    }
+
     private _updateContent(html: string, baseUrl: string) {
         const webview = this._panel.webview;
         const pageTitle = this._extractPageTitle(html);
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'webview-bundle.js'));
         const baseTag = `<base href="${baseUrl}">`;
+        
+        // Generate storage polyfill
+        const storageInjection = this._generateStoragePolyfill();
+        
         const scriptTag = `<script src="${scriptUri}"></script>`;
         
         // Root element for React Toolbar
@@ -601,11 +709,11 @@ export class BrowserPanel {
         // Body Padding Style
         const bodyPaddingStyle = '<style>body { padding-top: 75px !important; margin-top: 0 !important; }</style>';
 
-        // Inject Head (Base + Style)
+        // Inject Head (Base + Style + Storage Polyfill)
         if (html.includes('<head>')) {
-            html = html.replace('<head>', `<head>${baseTag}${bodyPaddingStyle}`);
+            html = html.replace('<head>', `<head>${baseTag}${bodyPaddingStyle}${storageInjection}`);
         } else {
-            html = `${baseTag}${bodyPaddingStyle}${html}`;
+            html = `${baseTag}${bodyPaddingStyle}${storageInjection}${html}`;
         }
 
         // Remove any existing toolbar roots if they exist in the page we fetched
@@ -635,6 +743,104 @@ export class BrowserPanel {
             this._panel.webview.postMessage({ command: 'updateUrl', url: baseUrl });
             this._panel.webview.postMessage({ command: 'setLocalhostMode', isLocalhost: false });
         }, 100);
+    }
+
+    /**
+     * Generate optimized storage polyfill for external sites
+     */
+    private _generateStoragePolyfill(): string {
+        return `
+<script>
+(function() {
+    // Optimized Storage Implementation
+    
+    var _localStorageData = {};
+    var _sessionStorageData = {};
+    var _initialized = false;
+
+    // Storage Event Dispatcher
+    function dispatchStorageEvent(key, newValue, oldValue, url) {
+        try {
+            var event = new StorageEvent('storage', {
+                key: key,
+                newValue: newValue,
+                oldValue: oldValue,
+                url: url || window.location.href
+            });
+            window.dispatchEvent(event);
+        } catch (e) {
+            // Ignore - most code doesn't rely on storage events
+        }
+    }
+
+    // LocalStorage Proxy
+    var localStorage = {
+        getItem: function(key) { return _localStorageData.hasOwnProperty(key) ? _localStorageData[key] : null; },
+        setItem: function(key, value) {
+            var oldValue = _localStorageData.hasOwnProperty(key) ? _localStorageData[key] : null;
+            _localStorageData[key] = String(value);
+            dispatchStorageEvent(key, value, oldValue);
+            try { window.parent.postMessage({ command: 'storageUpdate', type: 'localStorage', action: 'set', key: key, value: value }, '*'); } catch(e) {}
+        },
+        removeItem: function(key) {
+            var oldValue = _localStorageData.hasOwnProperty(key) ? _localStorageData[key] : null;
+            delete _localStorageData[key];
+            dispatchStorageEvent(key, null, oldValue);
+            try { window.parent.postMessage({ command: 'storageUpdate', type: 'localStorage', action: 'remove', key: key }, '*'); } catch(e) {}
+        },
+        clear: function() { _localStorageData = {}; try { window.parent.postMessage({ command: 'storageUpdate', type: 'localStorage', action: 'clear' }, '*'); } catch(e) {} },
+        key: function(index) { var keys = Object.keys(_localStorageData); return keys[index] || null; },
+        get length() { return Object.keys(_localStorageData).length; }
+    };
+
+    Object.defineProperty(window, 'localStorage', { get: function() { return localStorage; }, set: function() {}, configurable: false });
+
+    // SessionStorage Proxy
+    var sessionStorage = {
+        getItem: function(key) { return _sessionStorageData.hasOwnProperty(key) ? _sessionStorageData[key] : null; },
+        setItem: function(key, value) {
+            var oldValue = _sessionStorageData.hasOwnProperty(key) ? _sessionStorageData[key] : null;
+            _sessionStorageData[key] = String(value);
+            dispatchStorageEvent(key, value, oldValue);
+            try { window.parent.postMessage({ command: 'storageUpdate', type: 'sessionStorage', action: 'set', key: key, value: value }, '*'); } catch(e) {}
+        },
+        removeItem: function(key) {
+            var oldValue = _sessionStorageData.hasOwnProperty(key) ? _sessionStorageData[key] : null;
+            delete _sessionStorageData[key];
+            dispatchStorageEvent(key, null, oldValue);
+            try { window.parent.postMessage({ command: 'storageUpdate', type: 'sessionStorage', action: 'remove', key: key }, '*'); } catch(e) {}
+        },
+        clear: function() { _sessionStorageData = {}; try { window.parent.postMessage({ command: 'storageUpdate', type: 'sessionStorage', action: 'clear' }, '*'); } catch(e) {} },
+        key: function(index) { var keys = Object.keys(_sessionStorageData); return keys[index] || null; },
+        get length() { return Object.keys(_sessionStorageData).length; }
+    };
+
+    Object.defineProperty(window, 'sessionStorage', { get: function() { return sessionStorage; }, set: function() {}, configurable: false });
+
+    // Request storage data from parent on load
+    try {
+        window.parent.postMessage({ command: 'storageRequest', type: 'localStorage' }, '*');
+        window.parent.postMessage({ command: 'storageRequest', type: 'sessionStorage' }, '*');
+    } catch(e) {}
+
+    // Listen for storage data from parent
+    window.addEventListener('message', function(event) {
+        try {
+            if (event.data && event.data.command === 'storageData') {
+                if (event.data.storageType === 'localStorage' && event.data.data) {
+                    _localStorageData = event.data.data;
+                    _initialized = true;
+                } else if (event.data.storageType === 'sessionStorage' && event.data.data) {
+                    _sessionStorageData = event.data.data;
+                }
+            }
+        } catch(e) {}
+    });
+
+    console.log('[Storage] Optimized storage initialized');
+})();
+</script>
+        `;
     }
 
     private _update() {

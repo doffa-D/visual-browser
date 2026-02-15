@@ -5,6 +5,7 @@ import * as zlib from 'zlib';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { StorageManager } from '../storage/StorageManager';
 
 // @ts-ignore
 const chii = require('chii');
@@ -30,6 +31,7 @@ export class ProxyServer {
     private _chiiStartupError: Error | undefined;
     private _scriptServer: http.Server | undefined;
     private _scriptServerPort: number = 0;
+    private _storageManager: StorageManager | null = null;
 
     private _chiiServerPromise: Promise<void> | undefined;
 
@@ -139,10 +141,14 @@ export class ProxyServer {
                     ? `<script src="http://127.0.0.1:${this._scriptServerPort}/injected-picker.js"></script>`
                     : '';
 
+                // Generate localStorage/sessionStorage polyfill injection
+                const storageInjection = this._generateStorageInjection();
+
                 const injection = `
                     ${chiiScript}
                     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
                     ${pickerScript}
+                    ${storageInjection}
                     <style>body { padding-top: 75px !important; margin-top: 0 !important; }</style>
                 `;
 
@@ -206,6 +212,264 @@ export class ProxyServer {
                 this._scriptServerPort = addr.port;
                 debugLog(`[ProxyServer] Script server listening on port ${this._scriptServerPort}`);
             }
+        });
+    }
+
+    /**
+     * Set the storage manager for cookie and storage handling
+     */
+    public setStorageManager(storageManager: StorageManager): void {
+        this._storageManager = storageManager;
+    }
+
+    /**
+     * Generate JavaScript for localStorage/sessionStorage with VS Code persistence
+     */
+    private _generateStorageInjection(): string {
+        return `
+<script>
+(function() {
+    // ===== Optimized Storage Implementation =====
+    
+    // In-memory storage
+    var _localStorageData = {};
+    var _sessionStorageData = {};
+    var _initialized = false;
+
+    // ===== Storage Event Dispatcher =====
+    function dispatchStorageEvent(key, newValue, oldValue, url) {
+        try {
+            var event = new StorageEvent('storage', {
+                key: key,
+                newValue: newValue,
+                oldValue: oldValue,
+                url: url || window.location.href
+            });
+            window.dispatchEvent(event);
+        } catch (e) {
+            // Ignore - most code doesn't rely on storage events
+        }
+    }
+
+    // ===== LocalStorage Proxy =====
+    var localStorage = {
+        getItem: function(key) {
+            return _localStorageData.hasOwnProperty(key) ? _localStorageData[key] : null;
+        },
+        setItem: function(key, value) {
+            var oldValue = _localStorageData.hasOwnProperty(key) ? _localStorageData[key] : null;
+            _localStorageData[key] = String(value);
+            dispatchStorageEvent(key, value, oldValue);
+            // Notify VS Code extension (async, non-blocking)
+            try { window.parent.postMessage({ command: 'storageUpdate', type: 'localStorage', action: 'set', key: key, value: value }, '*'); } catch(e) {}
+        },
+        removeItem: function(key) {
+            var oldValue = _localStorageData.hasOwnProperty(key) ? _localStorageData[key] : null;
+            delete _localStorageData[key];
+            dispatchStorageEvent(key, null, oldValue);
+            try { window.parent.postMessage({ command: 'storageUpdate', type: 'localStorage', action: 'remove', key: key }, '*'); } catch(e) {}
+        },
+        clear: function() {
+            _localStorageData = {};
+            try { window.parent.postMessage({ command: 'storageUpdate', type: 'localStorage', action: 'clear' }, '*'); } catch(e) {}
+        },
+        key: function(index) {
+            var keys = Object.keys(_localStorageData);
+            return keys[index] || null;
+        },
+        get length() {
+            return Object.keys(_localStorageData).length;
+        }
+    };
+
+    Object.defineProperty(window, 'localStorage', { get: function() { return localStorage; }, set: function() {}, configurable: false });
+
+    // ===== SessionStorage Proxy =====
+    var sessionStorage = {
+        getItem: function(key) {
+            return _sessionStorageData.hasOwnProperty(key) ? _sessionStorageData[key] : null;
+        },
+        setItem: function(key, value) {
+            var oldValue = _sessionStorageData.hasOwnProperty(key) ? _sessionStorageData[key] : null;
+            _sessionStorageData[key] = String(value);
+            dispatchStorageEvent(key, value, oldValue);
+            try { window.parent.postMessage({ command: 'storageUpdate', type: 'sessionStorage', action: 'set', key: key, value: value }, '*'); } catch(e) {}
+        },
+        removeItem: function(key) {
+            var oldValue = _sessionStorageData.hasOwnProperty(key) ? _sessionStorageData[key] : null;
+            delete _sessionStorageData[key];
+            dispatchStorageEvent(key, null, oldValue);
+            try { window.parent.postMessage({ command: 'storageUpdate', type: 'sessionStorage', action: 'remove', key: key }, '*'); } catch(e) {}
+        },
+        clear: function() {
+            _sessionStorageData = {};
+            try { window.parent.postMessage({ command: 'storageUpdate', type: 'sessionStorage', action: 'clear' }, '*'); } catch(e) {}
+        },
+        key: function(index) {
+            var keys = Object.keys(_sessionStorageData);
+            return keys[index] || null;
+        },
+        get length() {
+            return Object.keys(_sessionStorageData).length;
+        }
+    };
+
+    Object.defineProperty(window, 'sessionStorage', { get: function() { return sessionStorage; }, set: function() {}, configurable: false });
+
+    // ===== IndexedDB Polyfill =====
+    var _indexedDBData = {};
+    
+    var indexedDB = {
+        open: function(name, version) {
+            var request = {
+                result: null,
+                onsuccess: null,
+                onerror: null,
+                readyState: 'pending'
+            };
+            
+            // Load from localStorage
+            try {
+                var stored = localStorage.getItem('__indexeddb_' + name);
+                if (stored) {
+                    _indexedDBData[name] = JSON.parse(stored);
+                } else {
+                    _indexedDBData[name] = { stores: {}, version: version || 1 };
+                }
+            } catch (e) {
+                _indexedDBData[name] = { stores: {}, version: version || 1 };
+            }
+            
+            var db = {
+                name: name,
+                version: version || 1,
+                objectStoreNames: Object.keys(_indexedDBData[name].stores),
+                close: function() {},
+                transaction: function(storeNames, mode) {
+                    return {
+                        objectStore: function(storeName) {
+                            var store = _indexedDBData[name].stores[storeName];
+                            return {
+                                get: function(key) {
+                                    return { result: store ? store[key] : undefined, onsuccess: null, onerror: null };
+                                },
+                                put: function(value, key) {
+                                    if (!store) { _indexedDBData[name].stores[storeName] = {}; }
+                                    _indexedDBData[name].stores[storeName][key || value.key] = value;
+                                    localStorage.setItem('__indexeddb_' + name, JSON.stringify(_indexedDBData[name]));
+                                    return { result: undefined, onsuccess: null, onerror: null };
+                                },
+                                delete: function(key) {
+                                    if (store && store[key]) { delete store[key]; localStorage.setItem('__indexeddb_' + name, JSON.stringify(_indexedDBData[name])); }
+                                    return { result: undefined, onsuccess: null, onerror: null };
+                                },
+                                clear: function() {
+                                    if (store) { _indexedDBData[name].stores[storeName] = {}; localStorage.setItem('__indexeddb_' + name, JSON.stringify(_indexedDBData[name])); }
+                                    return { result: undefined, onsuccess: null, onerror: null };
+                                },
+                                getAll: function() {
+                                    return { result: store ? Object.values(store) : [], onsuccess: null, onerror: null };
+                                },
+                                getAllKeys: function() {
+                                    return { result: store ? Object.keys(store) : [], onsuccess: null, onerror: null };
+                                },
+                                createIndex: function() { return this; },
+                                index: function() { return this; }
+                            };
+                        },
+                        abort: function() {},
+                        commit: function() {},
+                        oncomplete: null,
+                        onabort: null,
+                        onerror: null
+                    };
+                }
+            };
+            
+            request.result = db;
+            request.readyState = 'done';
+            
+            setTimeout(function() {
+                if (request.onsuccess) { request.onsuccess({ target: request }); }
+            }, 0);
+            
+            return request;
+        },
+        deleteDatabase: function(name) {
+            localStorage.removeItem('__indexeddb_' + name);
+            delete _indexedDBData[name];
+            return { result: undefined, onsuccess: null, onerror: null };
+        },
+        cmp: function(a, b) {
+            if (a < b) return -1;
+            if (a > b) return 1;
+            return 0;
+        }
+    };
+    
+    Object.defineProperty(window, 'indexedDB', { get: function() { return indexedDB; }, set: function() {}, configurable: false });
+
+    // ===== Request storage data from parent on load =====
+    // Fire once and forget - parent will respond
+    try {
+        window.parent.postMessage({ command: 'storageRequest', type: 'localStorage' }, '*');
+        window.parent.postMessage({ command: 'storageRequest', type: 'sessionStorage' }, '*');
+    } catch(e) {}
+
+    // Listen for storage data from parent
+    window.addEventListener('message', function(event) {
+        try {
+            if (event.data && event.data.command === 'storageData') {
+                if (event.data.storageType === 'localStorage' && event.data.data) {
+                    _localStorageData = event.data.data;
+                    _initialized = true;
+                } else if (event.data.storageType === 'sessionStorage' && event.data.data) {
+                    _sessionStorageData = event.data.data;
+                }
+            }
+        } catch(e) {}
+    });
+
+    console.log('[Storage] Optimized storage initialized');
+})();
+</script>
+        `;
+    }
+
+    /**
+     * Handle proxy requests with cookie support
+     */
+    private async _handleProxyRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+        // Get cookies from storage manager if available
+        let cookieHeader = '';
+        if (this._storageManager && req.url) {
+            try {
+                const url = new URL(req.url, `http://localhost:${this._extensionHostPort}`).href;
+                cookieHeader = await this._storageManager.getCookieHeader(url);
+            } catch (e) {
+                // Ignore URL parsing errors
+            }
+        }
+
+        // Add cookie header to the request if we have one
+        const headers: { [key: string]: string } = {};
+        
+        // Copy existing headers, converting arrays to strings
+        for (const [key, value] of Object.entries(req.headers)) {
+            if (value) {
+                headers[key] = Array.isArray(value) ? value[0] : value;
+            }
+        }
+        headers['accept-encoding'] = 'identity';
+        
+        if (cookieHeader) {
+            headers['cookie'] = cookieHeader;
+        }
+
+        // @ts-ignore - http-proxy expects specific header format
+        this._proxy.web(req, res, {
+            target: `http://localhost:${this._extensionHostPort}`,
+            headers: headers
         });
     }
 
@@ -278,12 +542,8 @@ export class ProxyServer {
         return new Promise((resolve, reject) => {
             // console.log(`[ProxyServer] ACTION: Starting HTTP server on dynamic port...`);
             this._server = http.createServer((req, res) => {
-                this._proxy.web(req, res, {
-                    target: `http://localhost:${this._extensionHostPort}`,
-                    headers: {
-                        'accept-encoding': 'identity' // Request uncompressed content from Vite
-                    }
-                });
+                // Add cookie handling for proxy requests
+                this._handleProxyRequest(req, res);
             });
 
             this._server.on('upgrade', (req, socket, head) => {
