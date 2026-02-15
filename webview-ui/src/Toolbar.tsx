@@ -132,9 +132,12 @@ export const Toolbar: React.FC = () => {
     };
 
     const handleScreenshot = () => {
+        console.log('[DEBUG] 🔘 Screenshot button clicked');
         const newState = !snipperActive;
+        console.log('[DEBUG] 🔄 Snipper state:', newState ? 'ENABLED' : 'DISABLED');
         setSnipperActive(newState);
         setPickerActive(false); // Exclusive
+        console.log('[DEBUG] 📤 Sending toggleSnipper message to injected script');
         window.postMessage({ command: 'toggleSnipper', enabled: newState }, '*');
     };
 

@@ -10,11 +10,12 @@
     "rootDir": "src",
     "strict": true,
     "esModuleInterop": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "skipLibCheck": true
   },
   "exclude": [
     "node_modules",
     ".vscode-test",
-    "webview-ui"  // IMPORTANT: Tell the main extension TS to ignore the React folder
+    "webview-ui"
   ]
 }

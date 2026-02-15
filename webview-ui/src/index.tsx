@@ -4,6 +4,7 @@ import { Toolbar } from './Toolbar';
 import { getVsCodeApi } from './vscode';
 import { formatElementDetails } from './common/dom-utils';
 import { Z_INDEX, TOOLBAR_HEIGHT } from './common/constants';
+import html2canvas from 'html2canvas';
 
 // Acquire VS Code API once
 const vscode = getVsCodeApi();
@@ -155,8 +156,15 @@ window.addEventListener('message', (event) => {
 
     // HANDLE message FROM iframe
     if (event.data && event.data.command === 'elementPicked' && event.source !== window) {
-        // console.log("Element Picked from Iframe:", event.data.text);
-        vscode.postMessage({ command: 'elementPicked', text: event.data.text });
+        console.log('[DEBUG] 📥 Webview received elementPicked, screenshot length:', event.data.elementScreenshot?.length || 0);
+        
+        vscode.postMessage({ 
+            command: 'elementPicked', 
+            text: event.data.text,
+            elementScreenshot: event.data.elementScreenshot 
+        });
+        
+        console.log('[DEBUG] 📤 Sent elementPicked to extension');
         
         // Reset local state too
         pickerEnabled = false;
@@ -166,11 +174,12 @@ window.addEventListener('message', (event) => {
 
     // HANDLE Screenshot Captured
     if (event.data && event.data.command === 'screenshotCaptured') {
-        // console.log("Screenshot Captured, sending to VS Code");
+        console.log('[DEBUG] 📥 Webview received screenshotCaptured, size:', event.data.data?.length);
         vscode.postMessage({ 
             command: 'screenshotCaptured', 
             data: event.data.data 
         });
+        console.log('[DEBUG] 📤 Sent screenshot to VS Code extension');
     }
 
     // HANDLE Chii URL update (background discovery)
@@ -322,7 +331,7 @@ document.addEventListener('mousemove', (e) => {
     });
 }, true); // Capture phase
 
-document.addEventListener('click', (e) => {
+document.addEventListener('click', async (e) => {
     if (!pickerEnabled) return;
     
     const target = e.target as HTMLElement;
@@ -341,8 +350,29 @@ document.addEventListener('click', (e) => {
 
     const detailedInfo = formatElementDetails(target);
    
+    // Hide overlay temporarily for screenshot
+    overlay.style.display = 'none';
+
+    // Capture screenshot of the selected element
+    let elementScreenshot: string | null = null;
+    try {
+        const canvas = await html2canvas(target, {
+            // @ts-ignore - html2canvas options
+            scale: 2,
+            logging: false,
+            useCORS: true
+        });
+        elementScreenshot = canvas.toDataURL('image/png');
+    } catch (err) {
+        console.error('Element screenshot failed:', err);
+    }
+
     // Visual feedback handled by extension
-    vscode.postMessage({ command: 'elementPicked', text: detailedInfo });
+    vscode.postMessage({ 
+        command: 'elementPicked', 
+        text: detailedInfo,
+        elementScreenshot: elementScreenshot
+    });
     
     // CONTINUOUS PICKING: Keep picker enabled
     // pickerEnabled = false;

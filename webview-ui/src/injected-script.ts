@@ -1,5 +1,5 @@
 import { formatElementDetails } from './common/dom-utils';
-import { domToPng } from 'modern-screenshot';
+import { toPng } from 'html-to-image';
 
 declare global {
     interface Window {
@@ -7,10 +7,17 @@ declare global {
     }
 }
 
+// Immediate console log to confirm script is loaded
+console.log('[VisualBrowser] Injected script loaded!');
+
 (function() {
     // Prevent duplicate injection
-    if (window.__visualBrowserPickerInjected) return;
+    if (window.__visualBrowserPickerInjected) {
+        console.log('[VisualBrowser] Script already injected, skipping...');
+        return;
+    }
     window.__visualBrowserPickerInjected = true;
+    console.log('[VisualBrowser] Initializing picker...');
 
     let pickerEnabled = false;
     let hovered: HTMLElement | null = null;
@@ -57,6 +64,7 @@ declare global {
     // Message Handler
     window.addEventListener('message', (event) => {
         if (event.data && event.data.command === 'togglePicker') {
+            console.log('[DEBUG] 📥 Injected script received togglePicker:', event.data.enabled);
             pickerEnabled = event.data.enabled;
             // Disable snipper if picker is toggled
             if (pickerEnabled) snipperEnabled = false;
@@ -65,20 +73,29 @@ declare global {
                 overlay.style.display = 'none';
                 hovered = null;
                 document.body.style.cursor = '';
+                console.log('[DEBUG] 🔧 Picker disabled');
             } else {
                 document.body.style.cursor = 'crosshair';
+                console.log('[DEBUG] 🔧 Picker enabled - click on an element to select it');
             }
         }
         if (event.data && event.data.command === 'toggleSnipper') {
+            console.log('[DEBUG] 📥 Injected script received toggleSnipper:', event.data.enabled);
             snipperEnabled = event.data.enabled;
             // Disable picker if snipper is toggled
-            if (snipperEnabled) pickerEnabled = false;
+            if (snipperEnabled) {
+                pickerEnabled = false;
+                console.log('[DEBUG] 🔧 Disabled picker, enabling snipper mode');
+            }
             
             if (snipperEnabled) {
                 document.body.style.cursor = 'crosshair';
+                console.log('[DEBUG] 🎯 Creating snipper overlay...');
                 createSnipperOverlay();
+                console.log('[DEBUG] ✅ Snipper overlay created - drag to select area');
             } else {
                 document.body.style.cursor = '';
+                console.log('[DEBUG] 🗑️ Removing snipper overlay');
                 removeSnipperOverlay();
             }
         }
@@ -131,10 +148,10 @@ declare global {
     }
 
     function onSnipperMouseDown(e: MouseEvent) {
+        console.log('[DEBUG] 🖱️ Mouse DOWN - starting selection');
         isDragging = true;
         startX = e.clientX;
         startY = e.clientY;
-        // console.log('[Screenshot Debug] Mouse Down:', { startX, startY, scrollX: window.scrollX, scrollY: window.scrollY });
         if (selectionBox) {
             selectionBox.style.display = 'block';
             selectionBox.style.left = startX + 'px';
@@ -162,17 +179,43 @@ declare global {
     }
 
     function onSnipperMouseUp(e: MouseEvent) {
+        console.log('[DEBUG] 🖱️ Mouse UP - selection complete');
         isDragging = false;
         
         if (!selectionBox || !snipperOverlay) return;
         const rect = selectionBox.getBoundingClientRect();
         
+        // More debug info - page dimensions and selection position
+        console.log('[DEBUG] 📐 Page dimensions:', { 
+            pageWidth: document.documentElement.scrollWidth, 
+            pageHeight: document.documentElement.scrollHeight,
+            viewportWidth: window.innerWidth, 
+            viewportHeight: window.innerHeight,
+            scrollX: window.scrollX, 
+            scrollY: window.scrollY 
+        });
+        
+        console.log('[DEBUG] 📐 Selected area (viewport):', { 
+            width: rect.width, 
+            height: rect.height, 
+            left: rect.left, 
+            top: rect.top 
+        });
+        
+        // Calculate absolute coordinates (viewport + scroll)
+        const captureX = rect.left + window.scrollX;
+        const captureY = rect.top + window.scrollY;
+        
+        console.log('[DEBUG] 📐 Selected area (absolute):', { 
+            captureX, 
+            captureY,
+            endX: rect.right + window.scrollX,
+            endY: rect.bottom + window.scrollY
+        });
+        
         // Capture screenshot of the area
         if (rect.width > 5 && rect.height > 5) {
-            
-            // Calculate absolute coordinates (viewport + scroll)
-            const captureX = rect.left + window.scrollX;
-            const captureY = rect.top + window.scrollY;
+            console.log('[DEBUG] 📸 Starting screenshot capture...');
             
             /*
             console.log('[Screenshot Debug] Mouse Up / Selection Finalized:', {
@@ -202,50 +245,100 @@ declare global {
             // Wait a frame for overlays to fully hide
             requestAnimationFrame(async () => {
                 try {
-                    // console.time('[Screenshot] Total Capture Process');
-                    // console.time('[Screenshot] domToPng Rendering');
+                    const startTime = performance.now();
                     
-                    // OPTIMIZATION: Use a much faster rendering approach
-                    const viewportDataUrl = await domToPng(document.body, {
-                        width: window.innerWidth,
-                        height: window.innerHeight,
-                        scale: 1,
+                    // OPTIMIZED: Capture ONLY the selected area directly (much faster!)
+                    // Use higher quality for better screenshots
+                    const pixelRatio = 2;  // Higher quality (2x)
+                    const viewportDataUrl = await toPng(document.documentElement, {
+                        // Capture at 2x pixel ratio for better quality
+                        pixelRatio: pixelRatio,
+                        // Skip expensive operations
+                        cacheBust: false,
+                        skipFonts: true,  // Skip font embedding
+                        skipAutoScale: true,  // Skip auto scaling
+                        style: {
+                            // Minimize styling work
+                            transform: 'none',
+                        },
+                        // Skip external images to avoid CORS
                         filter: (node) => {
                             const element = node as HTMLElement;
+                            
+                            // Skip hidden elements
                             if (element.style?.display === 'none' || element.style?.visibility === 'hidden') return false;
-                            return element.id !== 'visual-browser-injected-overlay' && 
-                                   element.id !== 'visual-browser-snipper-overlay' &&
-                                   element.id !== 'react-toolbar-root' &&
-                                   element.id !== 'visual-browser-devtools-overlay';
+                            
+                            // Skip overlays
+                            if (element.id === 'visual-browser-injected-overlay' || 
+                                element.id === 'visual-browser-snipper-overlay' ||
+                                element.id === 'react-toolbar-root' ||
+                                element.id === 'visual-browser-devtools-overlay') return false;
+                            
+                            // Skip external images (CORS)
+                            if (element.tagName === 'IMG') {
+                                const src = element.getAttribute('src') || '';
+                                if (src.startsWith('http') && !src.startsWith(window.location.origin)) {
+                                    return false;
+                                }
+                            }
+                            
+                            return true;
                         }
                     });
-                    // console.timeEnd('[Screenshot] domToPng Rendering');
+                    const captureTime = performance.now();
+                    console.log(`[Snipper] toPng captured in ${(captureTime - startTime).toFixed(0)}ms`);
 
                     // Crop the image using canvas
-                    // console.time('[Screenshot] Canvas Cropping/Encoding');
                     const img = new Image();
+                    
+                    // Handle both load and error events
                     img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        if (!ctx) return;
+                        try {
+                            console.log('[DEBUG] 🖼️ Image loaded, cropping...');
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            if (!ctx) return;
 
-                        canvas.width = rect.width;
-                        canvas.height = rect.height;
+                            canvas.width = rect.width;
+                            canvas.height = rect.height;
 
-                        const sourceX = rect.left;
-                        const sourceY = rect.top;
+                            // The captured image is at pixelRatio: 2, so scale coordinates accordingly
+                            const sourceX = (rect.left + window.scrollX) * pixelRatio;
+                            const sourceY = (rect.top + window.scrollY) * pixelRatio;
+                            const sourceWidth = rect.width * pixelRatio;
+                            const sourceHeight = rect.height * pixelRatio;
+                            
+                            console.log('[DEBUG] 📐 Cropping with scale correction:', { 
+                                sourceX, sourceY, sourceWidth, sourceHeight,
+                                viewportLeft: rect.left, viewportTop: rect.top,
+                                scrollX: window.scrollX, scrollY: window.scrollY,
+                                pixelRatio 
+                            });
 
-                        ctx.drawImage(img, sourceX, sourceY, rect.width, rect.height, 0, 0, rect.width, rect.height);
+                            ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, rect.width, rect.height);
 
-                        const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                        // console.timeEnd('[Screenshot] Canvas Cropping/Encoding');
-                        // console.timeEnd('[Screenshot] Total Capture Process');
-                        
+                            const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                            console.log('[DEBUG] 📤 Sending screenshotCaptured to webview, size:', croppedDataUrl.length);
+                            
+                            window.parent.postMessage({
+                                command: 'screenshotCaptured',
+                                data: croppedDataUrl
+                            }, '*');
+                            console.log('[DEBUG] ✅ Screenshot sent to webview!');
+                        } catch (err) {
+                            console.error('[Screenshot Debug] Canvas processing failed:', err);
+                        }
+                    };
+                    
+                    img.onerror = () => {
+                        console.error('[Screenshot Debug] Image failed to load - possibly due to CORS');
+                        console.log('[DEBUG] 📤 Sending FULL screenshot (no crop) as fallback, size:', viewportDataUrl.length);
                         window.parent.postMessage({
                             command: 'screenshotCaptured',
-                            data: croppedDataUrl
+                            data: viewportDataUrl
                         }, '*');
                     };
+                    
                     img.src = viewportDataUrl;
                 } catch (err) {
                     console.error('[Screenshot Debug] Capture failed:', err);
@@ -253,9 +346,11 @@ declare global {
             });
             
             // Cleanup after a short delay or immediately
+            console.log('[DEBUG] 🧹 Cleaning up snipper overlay');
             removeSnipperOverlay();
             window.parent.postMessage({ command: 'toggleSnipper', enabled: false }, '*');
         } else {
+             console.log('[DEBUG] ❌ Selection too small, canceling');
              removeSnipperOverlay();
              window.parent.postMessage({ command: 'toggleSnipper', enabled: false }, '*');
         }
@@ -293,20 +388,63 @@ declare global {
         });
     }, true);
 
-    document.addEventListener('click', (e: MouseEvent) => {
-        if (!pickerEnabled) return;
+    document.addEventListener('click', async (e: MouseEvent) => {
+        console.log('[DEBUG] 🖱️ CLICK EVENT TRIGGERED! pickerEnabled =', pickerEnabled);
+        if (!pickerEnabled) {
+            console.log('[DEBUG] ❌ Click ignored - picker not enabled');
+            return;
+        }
+        console.log('[DEBUG] 🔘 Element picker - user clicked on element');
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-
+        
         const target = e.target as HTMLElement;
         const detailedInfo = formatElementDetails(target);
+
+        // Hide overlay temporarily for screenshot
+        overlay.style.display = 'none';
+
+        // Capture screenshot of the selected element
+        let elementScreenshot: string | null = null;
+        try {
+            const startTime = performance.now();
+            console.log('[DEBUG] 📸 Element picker - capturing screenshot...');
+            
+            // Use html-to-image - capture at higher quality
+            // Get computed background color to preserve it
+            const computedStyle = window.getComputedStyle(target);
+            const bgColor = computedStyle.backgroundColor;
+            
+            const result = await toPng(target, {
+                pixelRatio: 2,  // Higher quality (2x)
+                cacheBust: false,
+                skipFonts: true,
+                style: {
+                    // Force background color to be rendered
+                    backgroundColor: bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent' ? bgColor : undefined,
+                },
+            });
+            
+            const endTime = performance.now();
+            console.log(`[DEBUG] 📸 Element screenshot captured in ${(endTime - startTime).toFixed(0)}ms, length: ${result?.length}`);
+            
+            if (result) {
+                elementScreenshot = result;
+                console.log('[DEBUG] 📤 Sending elementPicked with screenshot to webview');
+            }
+        } catch (err) {
+            console.error('[DEBUG] ❌ Element screenshot failed:', err);
+        }
 
         // Send to parent window (the VS Code Webview)
         window.parent.postMessage({
             command: 'elementPicked',
-            text: detailedInfo
+            text: detailedInfo,
+            elementScreenshot: elementScreenshot
         }, '*');
+        
+        console.log('[DEBUG] ✅ Element picker message sent');
 
     }, true);
 })();

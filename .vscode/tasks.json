@@ -1,16 +1,204 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "type": "npm",
-            "script": "compile",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": "$tsc",
-            "label": "npm: compile",
-            "detail": "compile the extension"
-        }
-    ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "compile",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": "$tsc",
+			"label": "npm: compile",
+			"detail": "compile the extension"
+		},
+		{
+			"label": "Package Extension",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"package"
+			],
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Package Extension",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"package"
+			],
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Package Extension",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"package"
+			],
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Package VSIX",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"vsce",
+				"package"
+			],
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Package VSIX",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"vsce",
+				"package"
+			],
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Package VSIX",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"vsce",
+				"package"
+			],
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Package VSIX",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"vsce",
+				"package"
+			],
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Package VSIX",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"vsce",
+				"package"
+			],
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Package VSIX",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"vsce",
+				"package"
+			],
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Package VSIX",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"vsce",
+				"package"
+			],
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Package VSIX",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"vsce",
+				"package"
+			],
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Package VSIX",
+			"type": "shell",
+			"command": "npx",
+			"args": [
+				"vsce",
+				"package"
+			],
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "npm: build:webview",
+			"type": "shell",
+			"command": "cd \"c:\\Users\\doffa\\Desktop\\visual-browser\\webview-ui\" && npm run build",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "git add -A",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"add",
+				"-A"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "none"
+		},
+		{
+			"label": "git status",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"status"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "none"
+		},
+		{
+			"label": "git status",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"status",
+				"--porcelain"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "none"
+		},
+		{
+			"label": "git add all",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"add",
+				"-A"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "none"
+		}
+	]
 }

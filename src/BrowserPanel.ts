@@ -78,7 +78,7 @@ export class BrowserPanel {
                         this._loadUrl(message.url);
                         return;
                     case 'elementPicked':
-                        this._handleElementPicked(message.text);
+                        this._handleElementPicked(message.text, message.elementScreenshot);
                         return;
                     case 'getBookmarks':
                         this._sendBookmarks();
@@ -169,17 +169,25 @@ export class BrowserPanel {
 
     private async _handleScreenshotCaptured(base64Data: string) {
         try {
-            // console.log('[Extension Debug] Screenshot received from webview');
+            console.log('[DEBUG] 🔧 Extension received screenshotCaptured, size:', base64Data?.length);
             const startTime = Date.now();
             
             // 0. Save original clipboard
+            console.log('[DEBUG] 📋 Reading original clipboard...');
             const originalClipboard = await vscode.env.clipboard.readText();
+            console.log('[DEBUG] ✅ Original clipboard saved');
 
             // 1. Process image data
+            console.log('[DEBUG] 🔄 Processing image data...');
             const base64Image = base64Data.split(';base64,').pop();
-            if (!base64Image) return;
+            if (!base64Image) {
+                console.error('[DEBUG] ❌ Invalid image data - no base64 found');
+                return;
+            }
+            console.log('[DEBUG] ✅ Base64 extracted, length:', base64Image.length);
 
             const buffer = Buffer.from(base64Image, 'base64');
+            console.log('[DEBUG] ✅ Buffer created, size:', buffer.length);
             
             // 2. Use OS temp directory for temporary file storage
             const os = require('os');
@@ -187,14 +195,14 @@ export class BrowserPanel {
             const filePath = path.join(tempDir, `copilot-screenshot-${Date.now()}.png`);
             
             // 3. Save file temporarily
-            // console.time('[Extension] File Write');
+            console.log('[DEBUG] 💾 Writing temp file:', filePath);
             await fs.promises.writeFile(filePath, buffer);
-            // console.timeEnd('[Extension] File Write');
+            console.log('[DEBUG] ✅ Temp file written');
             
             // 4. Copy to clipboard using cross-platform img-clipboard
-            // console.time('[Extension] Clipboard Copy (img-clipboard)');
+            console.log('[DEBUG] 📋 Copying image to clipboard...');
             const [err, stdout, stderr] = await copyImg(filePath);
-            // console.timeEnd('[Extension] Clipboard Copy (img-clipboard)');
+            console.log('[DEBUG] 📋 Clipboard copy result - err:', err ? err.message : 'SUCCESS');
             
             if (err) {
                 // Handle platform-specific errors
@@ -216,13 +224,15 @@ export class BrowserPanel {
             }
             
             // 5. Open chat and paste
-            // console.time('[Extension] Chat Open & Paste');
+            console.log('[DEBUG] 💬 Opening Copilot Chat...');
             await vscode.commands.executeCommand('workbench.action.chat.open');
+            console.log('[DEBUG] ✅ Chat opened');
             
             setTimeout(async () => {
+                console.log('[DEBUG] 📋 Pasting to chat...');
                 await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
-                // console.timeEnd('[Extension] Chat Open & Paste');
-                // console.log(`[Extension Debug] Total Extension Time: ${Date.now() - startTime}ms`);
+                console.log('[DEBUG] ✅ Pasted to chat!');
+                console.log(`[DEBUG] ⏱️ Total time: ${Date.now() - startTime}ms`);
                 
                 // 6. Cleanup: Delete temp file and restore original clipboard
                 setTimeout(async () => {
@@ -241,28 +251,145 @@ export class BrowserPanel {
         }
     }
 
-    private async _handleElementPicked(text: string) {
+    private async _handleElementPicked(text: string, elementScreenshot?: string) {
         if (!text) return;
         
-        // 1. Save original clipboard
-        const originalClipboard = await vscode.env.clipboard.readText();
+        console.log('[DEBUG] 🔧 Extension received elementPicked');
+        console.log('[DEBUG] 📸 Element screenshot length:', elementScreenshot?.length || 0);
         
-        // 2. Copy picked element (with newline for continuous picking)
+        // Always log to output panel
+        vscode.window.showInformationMessage(`Element picked! Screenshot: ${elementScreenshot ? 'YES' : 'NO'}`);
+        console.log('[VisualBrowser] Element picked - screenshot length:', elementScreenshot?.length || 0);
+        
+        const startTime = Date.now();
+        
+        // 0. Save original clipboard
+        console.log('[DEBUG] 📋 Reading original clipboard...');
+        const originalClipboard = await vscode.env.clipboard.readText();
+        console.log('[DEBUG] ✅ Original clipboard saved');
+
+        let filePath: string | undefined;
+        
+        // 1. If there's an element screenshot, process and copy it FIRST (like snipper)
+        if (elementScreenshot) {
+            console.log('[DEBUG] 🔄 Processing element screenshot...');
+            try {
+                // Process image data (same as snipper)
+                const base64Image = elementScreenshot.split(';base64,').pop();
+                if (!base64Image) {
+                    console.error('[DEBUG] ❌ Invalid image data - no base64 found');
+                    return;
+                }
+                
+                const buffer = Buffer.from(base64Image, 'base64');
+                
+                // Use OS temp directory
+                const os = require('os');
+                const tempDir = os.tmpdir();
+                filePath = path.join(tempDir, `copilot-element-${Date.now()}.png`);
+                
+                // Save file temporarily
+                console.log('[DEBUG] 💾 Writing temp file:', filePath);
+                await fs.promises.writeFile(filePath, buffer);
+                console.log('[DEBUG] ✅ Temp file written');
+                
+                // Copy to clipboard using cross-platform img-clipboard
+                console.log('[DEBUG] 📋 Copying image to clipboard...');
+                const [err, stdout, stderr] = await copyImg(filePath);
+                console.log('[DEBUG] 📋 Clipboard copy result - err:', err ? err.message : 'SUCCESS');
+                
+                if (err) {
+                    console.error('[DEBUG] ❌ Image clipboard failed:', err.message);
+                    vscode.window.showErrorMessage(`Screenshot clipboard error: ${err.message}`);
+                    try {
+                        if (filePath) await fs.promises.unlink(filePath);
+                    } catch {}
+                    return;
+                }
+                
+                // 2. Open chat and paste image FIRST
+                console.log('[DEBUG] 💬 Opening Copilot Chat...');
+                await vscode.commands.executeCommand('workbench.action.chat.open');
+                console.log('[DEBUG] ✅ Chat opened');
+                
+                // Wait longer for chat to fully open
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
+                console.log('[DEBUG] 📋 Pasting image to chat...');
+                await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
+                console.log('[DEBUG] ✅ Image pasted to chat!');
+                
+                console.log('[DEBUG] ⏱️ Image paste done, time so far:', Date.now() - startTime, 'ms');
+                
+            } catch (imgErr) {
+                console.error('[DEBUG] ❌ Element screenshot processing failed:', imgErr);
+            }
+        }
+        
+        // 3. NOW copy picked element text to clipboard and paste
+        console.log('[DEBUG] 📝 Copying text to clipboard...');
         await vscode.env.clipboard.writeText(text + '\n');
+        console.log('[DEBUG] ✅ Text copied to clipboard');
 
         try {
-            // 3. Attempt auto-paste
+            // 4. Open chat (or ensure it's open) and paste text
             await vscode.commands.executeCommand('workbench.action.chat.open');
-            await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
+            console.log('[DEBUG] 💬 Chat opened for text');
             
-            // 4. SUCCESS: Restore original clipboard after a short delay
+            await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
+            console.log('[DEBUG] ✅ Text pasted to chat!');
+            
+            console.log(`[DEBUG] ⏱️ Total time: ${Date.now() - startTime}ms`);
+            
+            // 5. SUCCESS: Restore original clipboard after a short delay
             setTimeout(async () => {
                 await vscode.env.clipboard.writeText(originalClipboard);
-            }, 1000); 
+                // Clean up temp file AFTER everything is done
+                if (filePath) {
+                    try {
+                        await fs.promises.unlink(filePath);
+                    } catch {}
+                }
+            }, 1000);
 
         } catch (e) {
             // 5. FAILURE: Keep picked element in clipboard for manual paste
-            vscode.window.showInformationMessage(`Element details copied to clipboard. Paste manually with Ctrl+V.`);
+            console.error('[DEBUG] ❌ Failed to paste to chat:', e);
+            vscode.window.showInformationMessage(`Element details + screenshot copied. Paste manually with Ctrl+V.`);
+            // Still try to clean up
+            if (filePath) {
+                try {
+                    await fs.promises.unlink(filePath);
+                } catch {}
+            }
+        }
+    }
+
+    private async _copyImageToClipboard(base64Data: string): Promise<void> {
+        // Extract base64 image data
+        const base64Image = base64Data.split(';base64,').pop();
+        if (!base64Image) {
+            console.log('[BrowserPanel] No base64 data found');
+            return;
+        }
+
+        console.log('[BrowserPanel] Copying image to clipboard, size:', base64Image.length);
+        
+        // Use Electron's native clipboard API (built into VS Code)
+        try {
+            const nativeImage = require('electron').nativeImage;
+            const { clipboard } = require('electron');
+            
+            if (nativeImage && clipboard) {
+                const image = nativeImage.createFromBuffer(Buffer.from(base64Image, 'base64'));
+                clipboard.writeImage(image);
+                console.log('[BrowserPanel] Image copied via Electron clipboard!');
+                vscode.window.showInformationMessage('Screenshot copied to clipboard!');
+                return;
+            }
+        } catch (e) {
+            console.log('[BrowserPanel] Electron clipboard error:', e);
+            vscode.window.showErrorMessage('Failed to copy screenshot to clipboard');
         }
     }
 

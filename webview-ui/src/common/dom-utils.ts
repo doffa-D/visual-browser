@@ -63,7 +63,12 @@ export function formatElementDetails(el: HTMLElement): string {
     const domPath = getDomPath(el);
     const styles = getComputedStyles(el);
     const attrs = getAttributes(el);
-    const htmlSnippet = el.outerHTML.substring(0, 500).replace(/\s+/g, ' ').trim();
+    
+    // Get full outerHTML without any truncation
+    const fullHtml = el.outerHTML;
+    const htmlLength = fullHtml.length;
+    // Use full HTML without limits
+    const htmlSnippet = fullHtml.replace(/\s+/g, ' ').trim();
 
     return `
 **Picked Element Details:**
@@ -77,7 +82,7 @@ export function formatElementDetails(el: HTMLElement): string {
 - **Visibility:** \`${styles.visibility}\`
 ${attrs ? '- **Attributes:** `' + attrs + '`' : ''}
 
-**Code:**
+**HTML:** (${htmlLength} chars)
 \`\`\`html
 ${htmlSnippet}
 \`\`\`
