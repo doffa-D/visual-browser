@@ -1,42 +1,121 @@
 # Visual Browser for VS Code
 
-Visual Browser is the missing bridge between your web app and AI. It's a high-fidelity "AI Picker" that lives inside VS Code, designed to close the gap between your browser and your AI-powered development workflow.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/doffa-D/visual-browser/main/logo.png" alt="Visual Browser Logo" width="128" height="128"/>
+</p>
 
-## 🚀 The AI-First Workflow
+> Integrated web browser for VS Code with AI-powered element inspection tools
 
-Web development with AI is powerful, but context switching is the bottleneck. Visual Browser removes the friction of copying HTML, describing elements, or taking manual screenshots.
+Visual Browser is the missing bridge between your web app and AI. Browse websites directly in VS Code and capture elements with one click for your AI coding assistant.
 
-- **AI Element Picker**: Click any element in your live app to instantly capture its full context (DOM, styles, structure) and paste it directly into GitHub Copilot Chat.
-- **Visual Context for AI**: No more manual descriptions. Just point, click, and tell the AI what to change.
-- **Smart Screenshots**: Select a region to auto-copy and paste visual context directly into your AI workflow.
-- **Real-time Feedback**: See your changes instantly without leaving your editor.
+## Overview
 
-## ✨ Features
+Built a website and need AI to help modify it? Visual Browser lets you:
+- Browse any website (local or remote) inside VS Code
+- Click any element to capture its HTML, styles, and context
+- Take screenshots and paste directly into Copilot Chat
+- Inspect network requests and console logs
 
-- **Built-in Browser:** Browse your local or remote sites directly within VS Code.
-- **Persistent Storage:** Cookies, localStorage, sessionStorage, and IndexedDB are automatically saved and restored between sessions.
-- **Localhost Proxy:** Seamlessly tunnels your `localhost` traffic into the webview with automatic script injection (optimized for Vite, React, and modern frameworks).
-- **External Site Support:** Browse any website with improved stability - external sites are isolated in iframes to prevent crashes.
-- **Deep Inspection**: Extract DOM paths, computed styles, layout info, and raw HTML snippets with one click.
-- **Embedded DevTools:** Integrated Chromium-like Developer Tools panel for network, console, and element inspection.
-- **High-Quality Picker:** Element selection with 2x resolution for crisp, accurate captures.
-- **Modern UI:** A sleek, compact toolbar with glassmorphism effects that feels native to VS Code.
+## Features
 
-## 🛠️ How to use
+### 🌐 Full-Featured Browser
+- Browse localhost and external websites within VS Code
+- URL persistence - your last visited page is restored on reload
+- Bookmarks support with persistent storage
+- Modern, VS Code-native toolbar
 
-1. **Activate:** Use the **Globe Icon** in the Editor Title bar or Status Bar, or run the command `Open Visual Browser`.
-2. **Browse:** Enter any URL (local or external) in the address bar. For localhost, the bridge will proxy the connection to allow deep inspection.
-3. **AI Pick:** Click the **Selection Icon** (mouse cursor) to start picking elements. The context is automatically copied to your clipboard.
-4. **Snipper:** Click the **Camera Icon** and drag over an area to capture a screenshot and paste it into Copilot Chat.
-5. **DevTools:** Click the **Terminal Icon** to open the internal inspection console.
-6. **Bookmarks:** Save your favorite sites for quick access - bookmarks persist across sessions.
+### 🎯 AI Element Picker
+- Click any element to capture full context (DOM path, styles, HTML)
+- Perfect for describing UI elements to AI assistants
+- High-quality 2x resolution captures
 
-## ⚙️ Configuration
+### 📸 Smart Screenshots
+- Drag to select any region
+- Automatically copies to clipboard
+- Paste directly into Copilot Chat
 
-- `visualBrowser.enableDebugLogs`: Toggle internal proxy logging for troubleshooting.
+### 🔧 Developer Tools
+- Integrated DevTools panel (network, console, elements)
+- Proxy support for localhost deep inspection
+- Works with Vite, React, Angular, Vue, and more
+
+### 💾 Persistent Storage
+- Cookies saved between sessions
+- localStorage/sessionStorage preserved
+- IndexedDB support
+
+## Requirements
+
+- VS Code 1.96.0 or later
+- GitHub Copilot (for AI features)
+
+## Installation
+
+1. Install from [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=doffa.visual-browser)
+2. Or search "Visual Browser" in VS Code Extensions
+
+## Usage
+
+### Opening the Browser
+- Click the **Globe icon** in the editor title bar
+- Or press `F1` and run `Open Visual Browser`
+
+### Browsing
+1. Enter any URL in the address bar
+2. For localhost (e.g., `http://localhost:5173`), deep inspection is enabled
+
+### Picking Elements
+1. Click the **Cursor icon** in the toolbar
+2. Hover over any element - it will be highlighted
+3. Click to capture - the element info is copied to clipboard
+
+### Taking Screenshots
+1. Click the **Camera icon**
+2. Drag to select an area
+3. Screenshot is copied - paste into Copilot Chat
+
+### DevTools
+1. Click the **Terminal icon** to open inspection panel
+2. Available: Console, Network, Elements
+
+## Keyboard Shortcuts
+
+| Action | Shortcut |
+|--------|----------|
+| Open Browser | `Ctrl+Shift+G` |
+| Pick Element | `Ctrl+Shift+P` |
+| Screenshot | `Ctrl+Shift+S` |
+
+## Configuration
+
+```json
+{
+  "visualBrowser.enableDebugLogs": true
+}
+```
+
+Enable debug logs for troubleshooting proxy issues.
+
+## Release Notes
+
+### 1.0.4
+- Fixed URL persistence - last visited page restored on reload
+
+### 1.0.3
+- Added persistent storage (cookies, localStorage, sessionStorage)
+- Improved external site stability with iframe isolation
+
+### 1.0.2
+- Added bookmarks support
+- High-quality element picker (2x resolution)
+
+### 1.0.1
+- Initial release
 
 ---
 
-*Currently optimized for VS Code with GitHub Copilot. Support for other editors (Cursor, Windsurf) coming soon.*
+<p align="center">
+Made with ❤️ for AI-powered development
+</p>
 
 

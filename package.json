@@ -3,7 +3,7 @@
   "displayName": "Visual Browser",
   "publisher": "doffa",
   "description": "Integrated web browser for VS Code with element inspection tools",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "icon": "logo.png",
   "repository": {
     "type": "git",

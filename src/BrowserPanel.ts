@@ -71,9 +71,18 @@ export class BrowserPanel {
         
         // Restore bookmarks
         this._bookmarks = this._context.globalState.get('copilot-bridge-bookmarks', []);
+        
+        // Restore last URL
+        this._currentUrl = this._context.globalState.get('visual-browser-last-url', '');
+        
         // console.log('[BrowserPanel] Restored bookmarks from globalState:', this._bookmarks);
 
-        this._update(); // Initial Load
+        // Load last URL or show landing page
+        if (this._currentUrl && this._currentUrl.trim() !== '') {
+            this._loadUrl(this._currentUrl);
+        } else {
+            this._update(); // Initial Load (landing page)
+        }
 
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
@@ -429,6 +438,9 @@ export class BrowserPanel {
         }
 
         this._currentUrl = url;
+        
+        // Save URL to globalState for persistence
+        this._context.globalState.update('visual-browser-last-url', url);
         
         // Check if this is a localhost URL
         const isLocalhost = url.includes('localhost') || url.includes('127.0.0.1');
