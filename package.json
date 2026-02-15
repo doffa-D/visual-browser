@@ -3,7 +3,7 @@
   "displayName": "Visual Browser",
   "publisher": "doffa",
   "description": "Integrated web browser for VS Code with element inspection tools",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "icon": "logo.png",
   "repository": {
     "type": "git",
@@ -78,7 +78,7 @@
   "devDependencies": {
     "@types/node": "^20.19.27",
     "@types/vscode": "^1.96.0",
-    "@vscode/vsce": "^3.2.1",
+    "@vscode/vsce": "^3.7.1",
     "typescript": "^5.7.2"
   },
   "dependencies": {
