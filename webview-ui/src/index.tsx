@@ -164,12 +164,42 @@ window.addEventListener('message', (event) => {
             elementScreenshot: event.data.elementScreenshot 
         });
         
-        console.log('[DEBUG] 📤 Sent elementPicked to extension');
+        console.log('[DEBUG] 📤 Sent elementPicked to extension - picker stays enabled');
         
-        // Reset local state too
-        pickerEnabled = false;
-        window.postMessage({ command: 'togglePicker', enabled: false }, '*'); 
-        hideOverlay();
+        // Keep picker enabled for next pick - don't reset state
+        // pickerEnabled = false;
+        // window.postMessage({ command: 'togglePicker', enabled: false }, '*'); 
+        // hideOverlay();
+    }
+
+    // HANDLE storage requests from iframe - respond with stored data
+    if (event.data && event.data.command === 'storageRequest' && event.source !== window) {
+        const storageType = event.data.type;
+        
+        // Request storage data from extension via VS Code
+        vscode.postMessage({
+            command: 'storageRequest',
+            storageType: storageType
+        });
+    }
+
+    // HANDLE storage updates from iframe - forward to extension
+    if (event.data && event.data.command === 'storageUpdate' && event.source !== window) {
+        vscode.postMessage({
+            command: 'storageUpdate',
+            storageType: event.data.type,
+            action: event.data.action,
+            key: event.data.key,
+            value: event.data.value
+        });
+    }
+
+    // HANDLE storage data from extension - forward to iframe
+    if (event.data && event.data.command === 'storageData') {
+        const iframe = document.getElementById('localhost-iframe') as HTMLIFrameElement;
+        if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage(event.data, '*');
+        }
     }
 
     // HANDLE Screenshot Captured

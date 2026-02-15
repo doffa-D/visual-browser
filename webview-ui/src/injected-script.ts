@@ -444,7 +444,10 @@ console.log('[VisualBrowser] Injected script loaded!');
             elementScreenshot: elementScreenshot
         }, '*');
         
-        console.log('[DEBUG] ✅ Element picker message sent');
+        console.log('[DEBUG] ✅ Element picker message sent - picker remains enabled for next pick');
+        
+        // Re-show overlay for next pick
+        overlay.style.display = 'block';
 
     }, true);
 })();

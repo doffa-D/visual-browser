@@ -86,6 +86,7 @@
     "chii": "^1.15.5",
     "http-proxy": "^1.18.1",
     "img-clipboard": "^1.1.0",
+    "node-localstorage": "^3.0.5",
     "tough-cookie": "^6.0.0"
   }
 }
